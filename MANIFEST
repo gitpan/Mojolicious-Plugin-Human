@@ -1,0 +1,8 @@
+lib/Mojolicious/Plugin/Human.pm
+Makefile.PL
+MANIFEST
+README.md
+t/001_use_ok.t
+t/005_compile.t
+t/010_human.t
+META.yml                                 Module meta-data (added by MakeMaker)
