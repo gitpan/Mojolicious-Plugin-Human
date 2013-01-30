@@ -10,7 +10,7 @@ use Carp;
 use DateTime;
 use DateTime::Format::DateParse;
 
-our $VERSION = '0.3';
+our $VERSION = '0.4';
 
 =encoding utf-8
 

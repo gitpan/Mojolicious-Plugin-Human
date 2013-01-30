@@ -13,10 +13,10 @@ WriteMakefile(
         'Roman V. Nikolaev <rshadow@rambler.ru>',
     ],
     PREREQ_PM       => {
-        'Mojo::Base'                    => 0,
-        'DateTime'                      => 0,
-        'DateTime::Format::DateParse'   => 0,
-        'DateTime::Format::DateParse'   => 0,
+        'Mojo::Base'                   => '0',
+        'DateTime'                     => '0',
+        'DateTime::Format::DateParse'  => '0',
+    	'Test::Compile'                => '0',
     },
     META_MERGE   => {
         resources => {
