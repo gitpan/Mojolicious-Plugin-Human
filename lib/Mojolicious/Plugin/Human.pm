@@ -3,6 +3,7 @@ package Mojolicious::Plugin::Human;
 use strict;
 use warnings;
 use utf8;
+use 5.10.0;
 
 use Mojo::Base 'Mojolicious::Plugin';
 use Carp;
@@ -10,7 +11,7 @@ use Carp;
 use DateTime;
 use DateTime::Format::DateParse;
 
-our $VERSION = '0.4';
+our $VERSION = '0.5';
 
 =encoding utf-8
 
