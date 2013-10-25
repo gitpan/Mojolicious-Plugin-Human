@@ -11,7 +11,7 @@ use Carp;
 use DateTime;
 use DateTime::Format::DateParse;
 
-our $VERSION = '0.5';
+our $VERSION = '0.7';
 
 =encoding utf-8
 
@@ -108,15 +108,21 @@ Get number, return money string in human readable form with levels.
 
 Get srtring, return phones (if many) string in human readable form.
 
-=head2 yandex_phone
+=head2 flat_phone
 
-Get srtring, return just numbers phone string without country code.
+Get srtring, return flat phone string.
 
 =head1 TEXT HELPERS
 
 =head2 human_suffix $str, $count, $one, $two, $many
 
 Get word base form and add some of suffix ($one, $two, $many) depends of $count
+
+=head1 DISTANCE HELPERS
+
+=head2 human_distance
+
+Return distance, without fractional part if possible.
 
 =cut
 
@@ -125,7 +131,8 @@ my $REGEXP_DIGIT = qr{^(-?\d+)(\d{3})};
 
 sub clean_phone($$$);
 sub human_phone($$$);
-sub date_parse($);
+sub date_parse($;$);
+
 
 sub register {
     my ($self, $app, $conf) = @_;
@@ -138,6 +145,7 @@ sub register {
     $conf->{datetime}   //= '%F %H:%M';
     $conf->{time}       //= '%H:%M:%S';
     $conf->{date}       //= '%F';
+    $conf->{tz}         //= 'local';
 
     $conf->{phone_country}  //= 7;
     $conf->{phone_region}   //= 495;
@@ -145,37 +153,37 @@ sub register {
     # Datetime
 
     $app->helper(str2time => sub {
-        my ($self, $str) = @_;
-        my $datetime = date_parse( $str );
+        my ($self, $str, $tz) = @_;
+        my $datetime = date_parse( $str, $tz // $conf->{tz} );
         return $str unless $datetime;
         return $datetime->epoch;
     });
 
     $app->helper(strftime => sub {
-        my ($self, $format, $str) = @_;
+        my ($self, $format, $str, $tz) = @_;
         return unless defined $str;
-        my $datetime = date_parse( $str );
+        my $datetime = date_parse( $str, $tz // $conf->{tz} );
         return $str unless $datetime;
         return $datetime->strftime( $format );
     });
 
     $app->helper(human_datetime => sub {
-        my ($self, $str) = @_;
-        my $datetime = date_parse( $str );
+        my ($self, $str, $tz) = @_;
+        my $datetime = date_parse( $str, $tz // $conf->{tz} );
         return $str unless $datetime;
         return $datetime->strftime($conf->{datetime});
     });
 
     $app->helper(human_time => sub {
-        my ($self, $str) = @_;
-        my $datetime = date_parse( $str );
+        my ($self, $str, $tz) = @_;
+        my $datetime = date_parse( $str, $tz // $conf->{tz} );
         return $str unless $datetime;
         return $datetime->strftime($conf->{time});
     });
 
     $app->helper(human_date => sub {
-        my ($self, $str) = @_;
-        my $datetime = date_parse( $str );
+        my ($self, $str, $tz) = @_;
+        my $datetime = date_parse( $str, $tz // $conf->{tz} );
         return $str unless $datetime;
         return $datetime->strftime($conf->{date});
     });
@@ -204,7 +212,7 @@ sub register {
         } @phones;
     });
 
-    $app->helper(yandex_phone => sub {
+    $app->helper(flat_phone => sub {
         my ($self, $phone) = @_;
         return clean_phone(
             $phone, $conf->{phone_country}, $conf->{phone_region}
@@ -239,6 +247,15 @@ sub register {
             ( $tail >= 10 and $tail < 21 )  ?$many  :$result;
 
         return $result;
+    });
+
+    # Distance
+
+    $app->helper(human_distance => sub {
+        my ($self, $dist) = @_;
+        $dist = sprintf '%3.2f', $dist;
+        $dist =~ s{\.?0+$}{};
+        return $dist;
     });
 }
 
@@ -289,54 +306,25 @@ sub human_phone($$$) {
 
 =head2 date_parse $str
 
-Get a string and return DateTime or undef. Have a hack for parse Russian data
-and time.
+Get a string and return DateTime or undef.
 
 =cut
 
-sub date_parse($) {
-    my ($str) = @_;
+sub date_parse($;$) {
+    my ($str, $tz) = @_;
 
     return unless $str;
 
-    my $dt;
+    $tz //= 'local';
 
-    my $tzone = DateTime::TimeZone->new( name => 'local' );
-
-    # Take a russian date if possible
-    my ($day, $month, $year, $hour, $minute, $second, $tz) =
-        $str =~ m{^
-            (\d{2})\.(\d{2})\.(\d{4})
-            (?:
-                \s+
-                (\d{2}):(\d{2}):(\d{2})?(?:\.\d+)?
-            )?
-            (?:
-                \s+
-                (.*)
-            )?
-        $}xs;
-    if( $day and $month and $year ) {
-        $dt = eval {
-            DateTime->new(
-                year        => $year,
-                month       => $month,
-                day         => $day,
-                hour        => $hour    || 0,
-                minute      => $minute  || 0,
-                second      => $second  || 0,
-                time_zone   => ($tz)
-                                ?DateTime::TimeZone->new( name => $tz )
-                                :$tzone,
-            );
-        };
-        return if !$dt or $@;
-    } else {
-        $dt = eval {
-            DateTime::Format::DateParse->parse_datetime( $str, $tzone->name );
-        };
-        return if !$dt or $@;
-    }
+    my $dt = eval {
+        if( $str =~ m{^\d+$} ) {
+            DateTime->from_epoch( epoch => $str, time_zone => $tz );
+        } else {
+            DateTime::Format::DateParse->parse_datetime( $str, $tz );
+        }
+    };
+    return if !$dt or $@;
 
     return $dt;
 }
